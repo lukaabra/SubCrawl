@@ -11,7 +11,7 @@ class _DBInteractor(object):
         Connects to a database and creates a cursor. Creates table all_movies if it does not exist.
 
         The all_movies table is for all of the media encountered in the scanned folder.
-        The no_sub_movies is only for media which hasn't got any .srt or .zip files inside of it's folder.
+        The selected_movies is only for media which has been selected for subtitle downloading
 
         :param program_dir: (string) Specifies the directory in which the program is installed
         :param rom_mode: (Boolean) Specifies if the database will be open in Read Only Mode or not
@@ -35,9 +35,14 @@ class _DBInteractor(object):
             self.establish_connection()
 
         # Subtitles is type INTEGER because SQLite3 does not support Boolean types
-        all_movies_table = "CREATE TABLE IF NOT EXISTS all_movies(id TEXT, file_name TEXT, path TEXT, " \
-                           "extension TEXT, title TEXT, year TEXT, rating TEXT, subtitles TEXT, sub_language TEXT)"
+        all_movies_table = "CREATE TABLE IF NOT EXISTS all_movies(id TEXT PRIMARY KEY NOT NULL, " \
+                           "file_name TEXT NOT NULL, path TEXT NOT NULL, extension TEXT, title TEXT NOT NULL, " \
+                           "year TEXT, rating TEXT, subtitles TEXT NOT NULL, sub_language TEXT)"
+        selected_movies_table = "CREATE TABLE IF NOT EXISTS selected_movies(id TEXT PRIMARY KEY NOT NULL, " \
+                                "file_name TEXT, path TEXT, extension TEXT, title TEXT, " \
+                                "year TEXT, rating TEXT, subtitles TEXT, sub_language TEXT)"
         self.cursor.execute(all_movies_table)
+        self.cursor.execute(selected_movies_table)
 
     def add_to_db(self, media: Media, table="all_movies"):
         """
@@ -45,10 +50,9 @@ class _DBInteractor(object):
         int in SQLite3) and subtitle language string to the database.
 
         :param media: (Media) Media object of the file to add to the database or
-        :param table: (string) table to which to add - "all_movies"
+        :param table: (string) table to which to add - "all_movies" or "selected_movies"
         """
-
-        if self._check_duplicate(media):
+        if self._check_duplicate(media, table):
             update_sql = "INSERT INTO {}(id, file_name, path, extension, title, year, rating, subtitles, sub_language)\
             VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)".format(table)
             self.cursor.execute(update_sql, (media.id, media.file_name, media.path, media.extension,
@@ -62,7 +66,7 @@ class _DBInteractor(object):
         :param media: (Media) Media object to check
         :param table: (string) name of the table in the database
 
-        :return: True if there is no duplicate and None if a suplicate exists
+        :return: True if there is no duplicate and None if a duplicate exists
         """
         # Checks if there is already an entry with this specific info
         look_up_string = "SELECT * FROM {} WHERE {}=?"
@@ -90,16 +94,19 @@ class _DBInteractor(object):
         for entry in self.retrieve(table):
             file_path = entry[2]
             if not os.path.isfile(file_path):
-                print(file_path)
                 condition = ("path", file_path)
                 self.delete_entry(condition)
 
-    def clear_db(self):
+    def clear_db(self, table="all_movies"):
         """
         Clears the whole database of any data and entries inside.
         """
-        clear_command = "DROP TABLE IF EXISTS all_movies"
-        self.cursor.execute(clear_command)
+        if table == "selected_movies":
+            clear_command = "DELETE FROM {}".format(table)
+            self.cursor.execute(clear_command)
+        else:
+            clear_command = "DROP TABLE IF EXISTS {}".format(table)
+            self.cursor.execute(clear_command)
 
     def close_db(self):
         """
@@ -109,6 +116,20 @@ class _DBInteractor(object):
         self.cursor.close()
         self.db.close()
 
+    def recreate_media_object(self, information_tuple: tuple) -> Media:
+        """
+        Receives a tuple which is an entry from the table "all_movies". Creates a Media object from the information
+        and returns that same object.
+
+        :param information_tuple: (tuple) contains fields for a record from the "all_movies" table
+        :return: recreated Media object which will be added to "selected_movies" database
+        """
+        media_id, media_file_name, media_path, _, media_title, media_year, media_rating, __, ___ = information_tuple[0]
+        recreated_media = Media(media_path)
+        recreated_media.year = media_year
+        recreated_media.title = media_title
+        return recreated_media
+
     def delete_entry(self, condition, table="all_movies"):
         """
         :param table: (string) A string specifying from which table to retrieve information
@@ -116,7 +137,6 @@ class _DBInteractor(object):
                                     ("id", "12345")     The first element is the column and the second is the value.
         """
         # TODO: Find out why the file that does not exist anymore isn't deleting
-        print(condition)
         if_statement = " WHERE {}=?".format(condition[0])
         self.cursor.execute("DELETE FROM {}".format(table) + if_statement, (condition[1], ))
 

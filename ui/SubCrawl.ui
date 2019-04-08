@@ -1257,6 +1257,22 @@ for movies</string>
         </attribute>
         <column>
          <property name="text">
+          <string>IMDb ID</string>
+         </property>
+         <property name="font">
+          <font>
+           <family>Museo Sans For Dell</family>
+           <pointsize>12</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="textAlignment">
+          <set>AlignCenter</set>
+         </property>
+        </column>
+        <column>
+         <property name="text">
           <string>Title</string>
          </property>
          <property name="font">
@@ -1322,22 +1338,6 @@ for movies</string>
         <column>
          <property name="text">
           <string>Subtitles</string>
-         </property>
-         <property name="font">
-          <font>
-           <family>Museo Sans For Dell</family>
-           <pointsize>12</pointsize>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="textAlignment">
-          <set>AlignCenter</set>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>Subtitle language</string>
          </property>
          <property name="font">
           <font>

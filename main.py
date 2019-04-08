@@ -8,7 +8,7 @@ import json
 
 from scanner import Scanner
 from db_interactor import _DBInteractor
-from subtitles import SubtitlePreference
+from subtitles import SubtitlePreference, SubtitleDownloader
 
 # Load the UI made in QtDesigner.
 UIClass, QtBaseClass = uic.loadUiType("ui\\SubCrawl.ui")
@@ -21,15 +21,18 @@ class MyApp(UIClass, QtBaseClass):
         UIClass.__init__(self)
         QtBaseClass.__init__(self)
         self.setupUi(self)
-        self.program_dir = os.getcwd()
         self.showMaximized()
+
         # TODO: Implement enabling and disabling of buttons depending on the confirmation of selection
         self.selection_confirmed = False
-        # TODO: Add all modules to initialize in __init__
+        self.program_dir = os.getcwd()
+
         self.subtitle_preference = SubtitlePreference()
         self.interactor = _DBInteractor(self.program_dir)
         self.interactor.check_if_entries_exist()
         self._populate_table()
+
+        self.subtitle_downloader = SubtitleDownloader(self.subtitle_preference, self.interactor)
 
     def bind_browse_button(self):
         """
@@ -186,11 +189,11 @@ class MyApp(UIClass, QtBaseClass):
         else:
             self.PromptLabel.setText("Folder scanning complete! {} files already exist in the database"
                                      .format(duplicate_files))
+            self._populate_table("all_movies")
         finally:
             self._enable_buttons()
 
         self.ScanProgressBar.setValue(0)
-        self._populate_table("all_movies")
 
     @pyqtSlot()
     def on_click_clear_db(self):
@@ -212,7 +215,20 @@ class MyApp(UIClass, QtBaseClass):
         self.ScannedItems.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         self.CancelSelectionButton.setEnabled(True)
         self.ConfirmSelectionButton.setEnabled(False)
-        self.ScannedItems.setLineWidth(3)
+
+        selected_rows = self.ScannedItems.selectionModel().selectedRows()
+        for row in selected_rows:
+            condition = ("id", str(row.data()))
+            # The retrieve method here always returns a single record from the database since there is only one
+            # record with that ID being passed to it.
+            query_result = self.interactor.retrieve("all_movies", condition)
+            row_media_object = self.interactor.recreate_media_object(query_result)
+            self.interactor.add_to_db(row_media_object, "selected_movies")
+        self.interactor.close_db()
+        self.interactor.establish_connection()
+
+        self.subtitle_downloader.extract_selected_movies()
+        self.ScannedItems.setLineWidth(2)
         self.PromptLabel.setText("Selection confirmed!")
 
     def on_click_cancel_selection(self):
@@ -220,6 +236,7 @@ class MyApp(UIClass, QtBaseClass):
         self.CancelSelectionButton.setEnabled(False)
         self.ConfirmSelectionButton.setEnabled(True)
         self.ScannedItems.setLineWidth(1)
+        self.interactor.clear_db("selected_movies")
         self.PromptLabel.setText("Canceled selection")
 
     def on_click_language_combo_box(self):
@@ -250,15 +267,17 @@ class MyApp(UIClass, QtBaseClass):
 
         # Adds a row to the table and fills up content in the cells in that row.
         for entry in self.interactor.retrieve(db_table, condition):
+
+            entry_id, _, entry_location, __, entry_title, entry_year, entry_rating, entry_subs, __ = entry
             self.ScannedItems.insertRow(table_row)
 
-            self.ScannedItems.setItem(table_row, 0, QtWidgets.QTableWidgetItem(entry[4]))
-            self.ScannedItems.setItem(table_row, 1, QtWidgets.QTableWidgetItem(entry[6]))
-            self.ScannedItems.setItem(table_row, 2, QtWidgets.QTableWidgetItem(entry[5]))
-            self.ScannedItems.setItem(table_row, 3, QtWidgets.QTableWidgetItem(entry[2]))
+            self.ScannedItems.setItem(table_row, 0, QtWidgets.QTableWidgetItem(entry_id))
+            self.ScannedItems.setItem(table_row, 1, QtWidgets.QTableWidgetItem(entry_title))
+            self.ScannedItems.setItem(table_row, 2, QtWidgets.QTableWidgetItem(entry_rating))
+            self.ScannedItems.setItem(table_row, 3, QtWidgets.QTableWidgetItem(entry_year))
+            self.ScannedItems.setItem(table_row, 4, QtWidgets.QTableWidgetItem(entry_location))
             # Boolean values must be written as string values to the GUI table
-            self.ScannedItems.setItem(table_row, 4, QtWidgets.QTableWidgetItem(entry[7]))
-            self.ScannedItems.setItem(table_row, 5, QtWidgets.QTableWidgetItem(entry[8]))
+            self.ScannedItems.setItem(table_row, 5, QtWidgets.QTableWidgetItem(entry_subs))
 
             table_row = self.ScannedItems.rowCount()
 

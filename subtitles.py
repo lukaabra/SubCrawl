@@ -1,7 +1,10 @@
 import json
-from xmlrpc.client import ServerProxy, Error
-import gzip, shutil
+import gzip
 import urllib.request
+import os
+from xmlrpc.client import ServerProxy, Error
+
+from db_interactor import _DBInteractor
 
 
 class SubtitlePreference(object):
@@ -35,8 +38,37 @@ class SubtitlePreference(object):
 
 class SubtitleDownloader(object):
 
-    def __init__(self, subtitle_preference):
+    def __init__(self, subtitle_preference: SubtitlePreference, interactor: _DBInteractor):
         self.preference = subtitle_preference
+        self.interactor = interactor
+
+    def download_from_opensubtitles(self):
+        with ServerProxy("https://api.opensubtitles.org/xml-rpc") as proxy:
+            language = ""
+            token = self.log_in_opensubtitles(proxy)
+            payload = {"query": "scarface",
+                       "sub_language_id": language}
+            results = proxy.SearchSubtitles(token, [payload], {"limit": 500})
+            for result in results["data"]:
+                sub_name = result["SubFileName"]
+                download_link = result["SubDownloadLink"]
+                subtitle_id = result["IDSubtitleFile"]
+                break
+
+            # Download .gz subtitle file
+            urllib.request.urlretrieve(download_link, sub_name + ".gz")
+            # Open and read the compressed file and write it outside
+            with gzip.open(sub_name + ".gz", "rb") as f:
+                file_content = f.read()
+            with open(sub_name, "wb") as sub_file:
+                sub_file.write(file_content)
+
+            proxy.LogOut(token)
+
+    def extract_selected_movies(self):
+        for item in self.interactor.retrieve("selected_movies"):
+            print(item)
+        print()
 
     def log_in_opensubtitles(self, proxy):
         """
@@ -61,26 +93,3 @@ class SubtitleDownloader(object):
             return login["token"]
         else:
             return "Uh-oh! Something went wrong!"
-
-    def download_from_opensubtitles(self):
-        with ServerProxy("https://api.opensubtitles.org/xml-rpc") as proxy:
-            language = ""
-            token = self.log_in_opensubtitles(proxy)
-            payload = {"query": "scarface",
-                       "sub_language_id": language}
-            results = proxy.SearchSubtitles(token, [payload], {"limit": 500})
-            for result in results["data"]:
-                sub_name = result["SubFileName"]
-                download_link = result["SubDownloadLink"]
-                subtitle_id = result["IDSubtitleFile"]
-                break
-
-            # Download .gz subtitle file
-            urllib.request.urlretrieve(download_link, sub_name + ".gz")
-            # Open and read the compressed file and write it outside
-            with gzip.open(sub_name + ".gz", "rb") as f:
-                file_content = f.read()
-            with open(sub_name, "wb") as sub_file:
-                sub_file.write(file_content)
-
-            proxy.LogOut(token)
