@@ -1,0 +1,3 @@
+[submodule "dependencies/PTN"]
+	path = dependencies/PTN
+	url = https://github.com/divijbindlish/parse-torrent-name

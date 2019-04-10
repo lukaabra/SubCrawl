@@ -20,7 +20,7 @@ class SubtitlePreference(object):
         self.sub_source_preference = ("OpenSubtitles", "SubDB")
 
     def add_language(self, language_preference):
-        with open("iso 639 2.json", "r") as languages_file:
+        with open("resources/iso 639 2.json", "r") as languages_file:
             languages_json = json.load(languages_file)
             for language in languages_json:
                 if language_preference == language["English_Name"]:

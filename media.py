@@ -3,6 +3,7 @@ import requests
 import json
 import os
 import random
+import PTN      # "parse_torrent_name" package
 
 
 class Media(object):
@@ -13,8 +14,6 @@ class Media(object):
         explanatory.
 
         :param file_path: (string) an absolute path of the media file
-
-        movie_regex: (tuple) number of regular expressions with which we check the type of media
         """
         self.path = file_path
         self.folder_name, self.file_name = os.path.split(self.path)
@@ -25,7 +24,6 @@ class Media(object):
         self.id = random.randint(1, 10000)
         self.imdb_rating = 0
         self.year = ""
-        self.movie_regex = re.compile(r"(.*?[.| ])(\(\d{4}\)|\d{4}|\[\d{4}\])?([.| ].*)")
 
     def add_subs(self, sub_path: tuple):
         """
@@ -82,6 +80,18 @@ class Movie(Media):
 
     def extract_movie_info(self):
         """
+        If package PTN (parse torrent name) fails to detect a title and a year, a batch of homemade regular
+        expressions are deployed to give it a try.
+        """
+        movie_info = PTN.parse(self.title)
+        try:
+            self.title = movie_info["title"]
+            self.year = movie_info["year"]
+        except KeyError:
+            self._parse_movie_name()
+
+    def _parse_movie_name(self):
+        """
         Several regular expressions specifically targeted to find the titles of movies from
         irregularly written ones. re.search is used because we want to match the regular expression
         throughout the string, not just the beginning that re.match would do.
@@ -94,13 +104,14 @@ class Movie(Media):
 
         TODO: Full proof regexes and write more of them.
         """
-        if self.movie_regex.search(self.title) is not None:
+        movie_regex = re.compile(r"(.*?[.| ])(\(\d{4}\)|\d{4}|\[\d{4}\])?([.| ].*)")
+        if movie_regex.search(self.title) is not None:
             try:
-                self.year = self.movie_regex.search(self.title).group(2).strip()
+                self.year = movie_regex.search(self.title).group(2).strip()
             except AttributeError:
                 self.year = ""
             finally:
-                self.title = self.movie_regex.search(self.title).group(1).strip()
+                self.title = movie_regex.search(self.title).group(1).strip()
                 additional_regex = re.compile(r"(.*)(\[.*\])")
                 if additional_regex.search(self.title) is not None:
                     self.title = additional_regex.search(self.title).group(1)
