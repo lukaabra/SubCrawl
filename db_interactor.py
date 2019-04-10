@@ -61,7 +61,8 @@ class _DBInteractor(object):
         :return: True if there is no duplicate and None if a duplicate exists
         """
         # Checks if there is already an entry with this specific info
-        look_up = "SELECT * FROM {} WHERE {}=?".format(table, "path")
+        look_up_string = "SELECT * FROM {} WHERE {}=?"
+        look_up = look_up_string.format(table, "path")
         self.cursor.execute(look_up, (media.path, ))
         first_duplicate_check = self.cursor.fetchone()
 
