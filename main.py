@@ -5,6 +5,7 @@ import os
 import requests
 import winsound
 import json
+import collections
 
 from scanner import Scanner
 from db_interactor import _DBInteractor
@@ -208,9 +209,7 @@ class MyApp(UIClass, QtBaseClass):
         """
         self.interactor.clear_db()
         self.ScannedItems.setRowCount(0)
-        # Commit changes and renew the cursor
-        self.interactor.close_db()
-        self.interactor.establish_connection()
+        self.interactor.commit_and_renew_cursor()
         self.PromptLabel.setText("Database cleared!")
 
     def on_click_confirm_selection(self):
@@ -229,8 +228,7 @@ class MyApp(UIClass, QtBaseClass):
             # The retrieve method here always returns a single record from the database since there is only one
             # record with that ID being passed to it.
             self.interactor.copy_to_table("all_movies", "selected_movies", condition)
-        self.interactor.close_db()
-        self.interactor.establish_connection()
+        self.interactor.commit_and_renew_cursor()
 
         self.subtitle_downloader.extract_selected_movies()
         self.ScannedItems.setLineWidth(2)
@@ -255,12 +253,24 @@ class MyApp(UIClass, QtBaseClass):
         self.PromptLabel.setText("Subtitle language changed")
 
     def on_click_remove_entry(self):
+        """
+        Deletes rows from the highest index to the lowest as to avoid bugs while iterating through the rows and
+        deleting them at the same time.
+        """
         selected_rows = self.ScannedItems.selectionModel().selectedRows()
-        # TODO: Update row index list after an entry is deleted
+        rows_to_delete = dict()
         for row in selected_rows:
-            self.ScannedItems.removeRow(row.row())
-            condition = ("id", row.data())
+            rows_to_delete[row.row()] = (row, row.data())
+
+        # Creates an OrderedDict which preserves the order of its elements
+        rows_to_delete = collections.OrderedDict(sorted(rows_to_delete.items(), reverse=True))
+        for row in rows_to_delete:
+            _, row_id = rows_to_delete[row]
+            condition = ("id", row_id)
             self.interactor.delete_entry(condition)
+            self.ScannedItems.removeRow(row)
+
+        self.interactor.commit_and_renew_cursor()
 
     @pyqtSlot()
     def _populate_table(self, db_table="all_movies", condition=None):

@@ -30,9 +30,9 @@ class _DBInteractor(object):
                 self.db = sqlite3.connect("file:{}\media.db?mode=ro".format(current_path), uri=True)
             # Database does not exist
             except sqlite3.OperationalError:
-                self.establish_connection()
+                self._establish_connection()
         else:
-            self.establish_connection()
+            self._establish_connection()
 
         self._create_tables()
 
@@ -61,8 +61,7 @@ class _DBInteractor(object):
         :return: True if there is no duplicate and None if a duplicate exists
         """
         # Checks if there is already an entry with this specific info
-        look_up_string = "SELECT * FROM {} WHERE {}=?"
-        look_up = look_up_string.format(table, "path")
+        look_up = "SELECT * FROM {} WHERE {}=?".format(table, "path")
         self.cursor.execute(look_up, (media.path, ))
         first_duplicate_check = self.cursor.fetchone()
 
@@ -97,7 +96,7 @@ class _DBInteractor(object):
         self.cursor.execute(clear_command)
         self._create_tables()
 
-    def close_db(self):
+    def _close_and_commit_db(self):
         """
         Method that commits the changes done to the database and closes it up.
         """
@@ -119,8 +118,16 @@ class _DBInteractor(object):
         self.cursor.execute(all_movies_table)
         self.cursor.execute(selected_movies_table)
 
+    def commit_and_renew_cursor(self):
+        """
+        Commits changes to the database, closes it and renews the cursor.
+        """
+        self._close_and_commit_db()
+        self._establish_connection()
+
     def copy_to_table(self, table_from, table_to, condition):
         """
+        Copies entries from "table_from" to "table_to" that satisfy the field condition.
 
         :param table_from: (String) name of table from which to copy values
         :param table_to: (string) name of table to which to copy values
@@ -136,15 +143,17 @@ class _DBInteractor(object):
 
     def delete_entry(self, condition, table="all_movies"):
         """
+        Deletes an entry from the database that matches the passed condition.
+
         :param table: (string) A string specifying from which table to retrieve information
         :param condition: (tuple) Tuple with two entries which specify the search condition. Example:
                                     ("id", "12345")     The first element is the column and the second is the value.
         """
-        # TODO: Find out why the file that does not exist anymore isn't deleting
         if_statement = " WHERE {}=?".format(condition[0])
-        self.cursor.execute("DELETE FROM {}".format(table) + if_statement, (condition[1], ))
+        sql_command = "DELETE FROM {}".format(table)
+        self.cursor.execute(sql_command + if_statement, (condition[1], ))
 
-    def establish_connection(self):
+    def _establish_connection(self):
         """
         Connects to the database and renews the cursor.
         """
@@ -160,7 +169,7 @@ class _DBInteractor(object):
         :param condition: (tuple) Tuple with two entries which specify the search condition. Example:
                                     ("id", "12345")     The first element is the column and the second is the value.
         """
-        self.establish_connection()
+        self._establish_connection()
         if condition:
             if_statement = " WHERE {}=?".format(condition[0])
             result = self.cursor.execute("SELECT * FROM {}".format(table) + if_statement, (condition[1], ))

@@ -28,7 +28,7 @@ class Scanner(object):
         """
         media = Movie(file_path)
         media.extract_movie_info()
-        movie_found = True  # No internet connection
+        # movie_found = True  # No internet connection
         movie_found = media.search_imdb_id()
         if movie_found:
             if contains_subs:
@@ -43,8 +43,7 @@ class Scanner(object):
                                 and the number of total files in the selected folder
         """
         self._scan_folder(self.path, self.video_files_extensions(), progress_tuple)
-        self.interactor.close_db()
-        self.interactor.establish_connection()
+        self.interactor.commit_and_renew_cursor()
         return self.interactor.duplicate_files
 
     def _scan_folder(self, selected_folder: str, movie_extensions: tuple, progress_tuple: tuple):
