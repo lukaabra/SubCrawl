@@ -33,7 +33,7 @@ class Scanner(object):
         if movie_found:
             if contains_subs:
                 media.add_subs(contains_subs)
-            self.interactor.add_to_db(media, table)
+            self.interactor.add_media_to_db(media, table)
 
     def perform_scan(self, progress_tuple: tuple):
         """
