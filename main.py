@@ -72,6 +72,12 @@ class MyApp(UIClass, QtBaseClass):
 
         self.SelectAllRadio.toggled.connect(self.select_all_movies)
 
+    def bind_remove_entry(self):
+        """
+        Button to remove a selected entry in the table
+        """
+        self.RemoveEntryButton.clicked.connect(self.on_click_remove_entry)
+
     def bind_scan_button(self):
         """
         Connects the "Start scan" button to the scan method.
@@ -215,15 +221,14 @@ class MyApp(UIClass, QtBaseClass):
         self.ScannedItems.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         self.CancelSelectionButton.setEnabled(True)
         self.ConfirmSelectionButton.setEnabled(False)
+        self.RemoveEntryButton.setEnabled(False)
 
         selected_rows = self.ScannedItems.selectionModel().selectedRows()
         for row in selected_rows:
             condition = ("id", str(row.data()))
             # The retrieve method here always returns a single record from the database since there is only one
             # record with that ID being passed to it.
-            query_result = self.interactor.retrieve("all_movies", condition)
-            row_media_object = self.interactor.recreate_media_object(query_result)
-            self.interactor.add_to_db(row_media_object, "selected_movies")
+            self.interactor.copy_to_table("all_movies", "selected_movies", condition)
         self.interactor.close_db()
         self.interactor.establish_connection()
 
@@ -235,6 +240,7 @@ class MyApp(UIClass, QtBaseClass):
         self.ScannedItems.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
         self.CancelSelectionButton.setEnabled(False)
         self.ConfirmSelectionButton.setEnabled(True)
+        self.RemoveEntryButton.setEnabled(False)
         self.ScannedItems.setLineWidth(1)
         self.interactor.clear_db("selected_movies")
         self.PromptLabel.setText("Canceled selection")
@@ -248,6 +254,14 @@ class MyApp(UIClass, QtBaseClass):
         self.subtitle_preference.add_language(selected_language)
         self.PromptLabel.setText("Subtitle language changed")
 
+    def on_click_remove_entry(self):
+        selected_rows = self.ScannedItems.selectionModel().selectedRows()
+        # TODO: Update row index list after an entry is deleted
+        for row in selected_rows:
+            self.ScannedItems.removeRow(row.row())
+            condition = ("id", row.data())
+            self.interactor.delete_entry(condition)
+
     @pyqtSlot()
     def _populate_table(self, db_table="all_movies", condition=None):
         """
@@ -255,7 +269,7 @@ class MyApp(UIClass, QtBaseClass):
 
         media.db structure:
 
-        all_movies:
+        all_movies & selected_movies:
         id     file_name     path     extension     title     year     rating     subtitles     sub_language
 
         :param db_table: (string) table in the database from which to populate
@@ -381,6 +395,7 @@ if __name__ == "__main__":
     window.bind_cancel_selection()
     window.bind_table_selection_changed()
     window.bind_checkbox()
+    window.bind_remove_entry()
     window.populate_language_combo_box()
 
     window.show()

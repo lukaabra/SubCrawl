@@ -34,17 +34,9 @@ class _DBInteractor(object):
         else:
             self.establish_connection()
 
-        # Subtitles is type INTEGER because SQLite3 does not support Boolean types
-        all_movies_table = "CREATE TABLE IF NOT EXISTS all_movies(id TEXT PRIMARY KEY NOT NULL, " \
-                           "file_name TEXT NOT NULL, path TEXT NOT NULL, extension TEXT, title TEXT NOT NULL, " \
-                           "year TEXT, rating TEXT, subtitles TEXT NOT NULL, sub_language TEXT)"
-        selected_movies_table = "CREATE TABLE IF NOT EXISTS selected_movies(id TEXT PRIMARY KEY NOT NULL, " \
-                                "file_name TEXT, path TEXT, extension TEXT, title TEXT, " \
-                                "year TEXT, rating TEXT, subtitles TEXT, sub_language TEXT)"
-        self.cursor.execute(all_movies_table)
-        self.cursor.execute(selected_movies_table)
+        self._create_tables()
 
-    def add_to_db(self, media: Media, table="all_movies"):
+    def add_media_to_db(self, media: Media, table="all_movies"):
         """
         Adds the file name, path, extension of the file, title, if there are any subtitles (bool in Python and
         int in SQLite3) and subtitle language string to the database.
@@ -101,12 +93,9 @@ class _DBInteractor(object):
         """
         Clears the whole database of any data and entries inside.
         """
-        if table == "selected_movies":
-            clear_command = "DELETE FROM {}".format(table)
-            self.cursor.execute(clear_command)
-        else:
-            clear_command = "DROP TABLE IF EXISTS {}".format(table)
-            self.cursor.execute(clear_command)
+        clear_command = "DROP TABLE IF EXISTS {}".format(table)
+        self.cursor.execute(clear_command)
+        self._create_tables()
 
     def close_db(self):
         """
@@ -116,19 +105,34 @@ class _DBInteractor(object):
         self.cursor.close()
         self.db.close()
 
-    def recreate_media_object(self, information_tuple: tuple) -> Media:
+    def _create_tables(self):
         """
-        Receives a tuple which is an entry from the table "all_movies". Creates a Media object from the information
-        and returns that same object.
+        Creates tables "all_movies" and "selected_movies" if they do not exist.
+        """
+        # Subtitles is type INTEGER because SQLite3 does not support Boolean types
+        all_movies_table = "CREATE TABLE IF NOT EXISTS all_movies(id TEXT PRIMARY KEY NOT NULL, " \
+                           "file_name TEXT NOT NULL, path TEXT NOT NULL, extension TEXT, title TEXT NOT NULL, " \
+                           "year TEXT, rating TEXT, subtitles TEXT NOT NULL, sub_language TEXT)"
+        selected_movies_table = "CREATE TABLE IF NOT EXISTS selected_movies(id TEXT PRIMARY KEY NOT NULL, " \
+                                "file_name TEXT, path TEXT, extension TEXT, title TEXT, " \
+                                "year TEXT, rating TEXT, subtitles TEXT, sub_language TEXT)"
+        self.cursor.execute(all_movies_table)
+        self.cursor.execute(selected_movies_table)
 
-        :param information_tuple: (tuple) contains fields for a record from the "all_movies" table
-        :return: recreated Media object which will be added to "selected_movies" database
+    def copy_to_table(self, table_from, table_to, condition):
         """
-        media_id, media_file_name, media_path, _, media_title, media_year, media_rating, __, ___ = information_tuple[0]
-        recreated_media = Media(media_path)
-        recreated_media.year = media_year
-        recreated_media.title = media_title
-        return recreated_media
+
+        :param table_from: (String) name of table from which to copy values
+        :param table_to: (string) name of table to which to copy values
+        :param condition: (tuple) Tuple with two entries which specify the search condition. Example:
+                                    ("id", "12345")     The first element is the column and the second is the value.
+        """
+        sql_command = "INSERT INTO {} SELECT * FROM {}".format(table_to, table_from)
+        conditional = " WHERE {}=?".format(condition[0])
+        try:
+            self.cursor.execute(sql_command + conditional, (condition[1], ))
+        except sqlite3.IntegrityError:
+            pass
 
     def delete_entry(self, condition, table="all_movies"):
         """

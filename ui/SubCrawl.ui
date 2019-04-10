@@ -24,6 +24,7 @@
   </property>
   <property name="font">
    <font>
+    <family>Museo Sans For Dell</family>
     <pointsize>9</pointsize>
    </font>
   </property>
@@ -32,6 +33,9 @@
   </property>
   <property name="layoutDirection">
    <enum>Qt::LeftToRight</enum>
+  </property>
+  <property name="documentMode">
+   <bool>false</bool>
   </property>
   <property name="tabShape">
    <enum>QTabWidget::Rounded</enum>
@@ -2023,7 +2027,7 @@ for movies</string>
      <x>0</x>
      <y>0</y>
      <width>1280</width>
-     <height>26</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuPreferences">
