@@ -6,6 +6,7 @@ import requests
 import winsound
 import json
 import collections
+import asyncio
 
 from scanner import Scanner
 from db_interactor import _DBInteractor
@@ -62,6 +63,9 @@ class MyApp(UIClass, QtBaseClass):
         Connects the combo box to the function which changes the text on the label showing the language.
         """
         self.LanguageComboBox.activated.connect(self.on_click_language_combo_box)
+
+    def bind_download_button(self):
+        self.DownloadButton.clicked.connect(self.on_click_download)
 
     def bind_radio_buttons(self):
         """
@@ -202,6 +206,10 @@ class MyApp(UIClass, QtBaseClass):
 
         self.ScanProgressBar.setValue(0)
 
+    def on_click_download(self):
+        # TODO: Find out how to make the GUI still interactible while downloading and querying.
+        asyncio.run(self.subtitle_downloader.download_from_opensubtitles())
+
     @pyqtSlot()
     def on_click_clear_db(self):
         """
@@ -230,7 +238,6 @@ class MyApp(UIClass, QtBaseClass):
             self.interactor.copy_to_table("all_movies", "selected_movies", condition)
         self.interactor.commit_and_renew_cursor()
 
-        self.subtitle_downloader.extract_selected_movies()
         self.ScannedItems.setLineWidth(2)
         self.PromptLabel.setText("Selection confirmed!")
 
@@ -295,7 +302,7 @@ class MyApp(UIClass, QtBaseClass):
             entry_id, _, entry_location, __, entry_title, entry_year, entry_rating, entry_subs, __ = entry
             self.ScannedItems.insertRow(table_row)
 
-            self.ScannedItems.setItem(table_row, 0, QtWidgets.QTableWidgetItem(entry_id))
+            self.ScannedItems.setItem(table_row, 0, QtWidgets.QTableWidgetItem(str(entry_id)))
             self.ScannedItems.setItem(table_row, 1, QtWidgets.QTableWidgetItem(entry_title))
             self.ScannedItems.setItem(table_row, 2, QtWidgets.QTableWidgetItem(entry_rating))
             self.ScannedItems.setItem(table_row, 3, QtWidgets.QTableWidgetItem(entry_year))
@@ -396,6 +403,7 @@ if __name__ == "__main__":
     window.SelectedFolderDisplay.setText(desktop_directory)
 
     # Binds the signals to the buttons
+    window.bind_download_button()
     window.bind_browse_button()
     window.bind_scan_button()
     window.bind_clear_button()

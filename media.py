@@ -50,7 +50,7 @@ class Media(object):
         media_info = json.loads(response.text)
 
         try:
-            self.id = media_info["imdbID"]
+            self.id = int(media_info["imdbID"].replace("t", ""))
             self.title = media_info["Title"]
             self.year = media_info["Year"]
             self.imdb_rating = [item["Value"] for item in media_info["Ratings"] if item["Source"] ==
