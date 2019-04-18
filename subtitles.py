@@ -48,6 +48,9 @@ class SubtitleDownloader(object):
 
         self.opensubs_token = None
         self.payload = dict()
+        
+        self.sub_file_extensions = (".RAR", ".ZIP", ".SRT")
+        self.download_links_json_file_path = os.getcwd() + "\\resources\\dl_links.json"
 
     def _create_payload(self, entry):
         """
@@ -59,61 +62,73 @@ class SubtitleDownloader(object):
         try:
             entry_id = entry[0]
             entry_title = entry[4]
+            movie_directory, _ = os.path.split(entry[2])
         except KeyError:
             payload = dict()
+            movie_directory = ""
         else:
             # If "imdbid" is defined, "query" is ignored.
             payload = {"imdbid": entry_id,
                        "query": entry_title,
                        "sub_language_id": self.preference.language_iso3}
-        return payload
+        return payload, movie_directory
 
-    async def _perform_query(self, payload, proxy):
+    def _perform_query(self, payload, proxy):
         """
-        Asynchronously iterates through the generated payloads to query the OpenSubtitles server. If the connection
-        is successful the function gets a download link for the subtitle file and the file's name.
+        Searches for the desired subtitles through the OpenSubtitles API and writes the download URL information
+        to a JSON file.
 
         :param payload: (dictionary) contains the information about the movie for which the subtitle will download
         :param proxy: ServerProxy.LogIn(username, password, language, useragent)
         """
         try:
-            query_result = proxy.SearchSubtitles(self.opensubs_token, [payload], {"limit": 25})
+            query_result = proxy.SearchSubtitles(self.opensubs_token, [payload], {"limit": 10})
         except Fault as e:
             raise "A fault has occurred:\n{}".format(e)
         except ProtocolError as e:
             raise "A ProtocolError has occurred:\n{}".format(e)
         else:
             if query_result["status"] == "200 OK":
-                with open("dl_links.json", "w") as dl_links_json:
-                    result = query_result["data"][0]
-                    subtitle_name = result["SubFileName"]
-                    download_link = result["SubDownloadLink"]
-                    download_data = {"download link": download_link,
-                                     "file name": subtitle_name}
-                    json.dump(download_data, dl_links_json)
+                if os.path.isfile(self.download_links_json_file_path):
+                    write_mode = "a"
+                else:
+                    write_mode = "w"
+                with open("resources\\dl_links.json", write_mode) as dl_links_json:
+                    results = query_result["data"]
+                    for result in results:
+                        subtitle_name, download_link = result["SubFileName"], result["SubDownloadLink"]
+                        if subtitle_name.upper().endswith(self.sub_file_extensions):
+                            download_data = {"download link": download_link, "file name": subtitle_name}
+                            json.dump(download_data, dl_links_json)
+                            break
             else:
                 print("Wrong status code: {}".format(query_result["status"]))
 
-    async def _download_and_save_file(self, proxy):
+    async def _download_and_save_file(self, movie_directory):
         """
         Iterates through the download links gotten from OpenSubtitles and tries to download and save each file from
-        each link.
+        each link asynchronously using aiohttp.
 
-        :param proxy: ServerProxy.LogIn(username, password, language, useragent)
+        :param movie_directory:
         :return:
         """
-        async with aiofiles.open("dl_links.json", mode="r") as dl_links_json:
-            async for line in dl_links_json:
-                print(line)
-
-        # Download .gz subtitle file
-        # https://stackoverflow.com/questions/35388332/how-to-download-images-with-aiohttp
-        # async with aiohttp.ClientSession() as session:
-        #     async with session.get(download_link) as response:
-        #         if response.status == 200:
-        #             subtitle_file = await aiofiles.open(sub_name + ".gz", mode="wb")
-        #             await subtitle_file(await response.read())
-        #             await subtitle_file.close()
+        with open("resources\\dl_links.json", "r") as dl_links_json:
+            file_data = json.load(dl_links_json)
+            download_link, sub_name = file_data["download link"], file_data["file name"]
+            # Download .gz subtitle file
+            # https://stackoverflow.com/questions/35388332/how-to-download-images-with-aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.get(download_link) as response:
+                    if response.status == 200:
+                        subtitle_path = movie_directory + "\\" + sub_name + ".gz"
+                        # Streaming the response content
+                        with open(subtitle_path, "wb") as subtitle_file:
+                            while True:
+                                # TODO: Add to progress bar
+                                chunk = await response.content.read(10)
+                                if not chunk:
+                                    break
+                                subtitle_file.write(chunk)
 
         # Open and read the compressed file and write it outside
         # with gzip.open(sub_name + ".gz", "rb") as f:
@@ -131,19 +146,13 @@ class SubtitleDownloader(object):
         """
         with ServerProxy("https://api.opensubtitles.org/xml-rpc") as proxy:
             self.opensubs_token = self.log_in_opensubtitles(proxy)
-            payloads = [self._create_payload(entry) for entry in self.interactor.retrieve("selected_movies")]
-            tasks = [asyncio.create_task(self._perform_query(payload, proxy)) for payload in payloads]
-            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-            print(done)
-            print(len(done))
-            print(pending)
-            print(len(pending))
+            for payload, movie_directory in (self._create_payload(entry) for entry in
+                                             self.interactor.retrieve("selected_movies")):
+                self._perform_query(payload, proxy)
+                download_task = asyncio.create_task(self._download_and_save_file(movie_directory))
+                await download_task
+            os.remove(self.download_links_json_file_path)
 
-            # query_task = asyncio.create_task(self._perform_query(proxy))
-            # download_task = asyncio.create_task(self._download_and_save_file(proxy))
-            # done_futures, pending_futures = await asyncio.wait(query_task, return_when="FIRST_COMPLETED")
-            # print(done_futures, pending_futures)
-            # await download_task
             proxy.LogOut(self.opensubs_token)
 
     def log_in_opensubtitles(self, proxy):

@@ -110,10 +110,10 @@ class _DBInteractor(object):
         Creates tables "all_movies" and "selected_movies" if they do not exist.
         """
         # Subtitles is type INTEGER because SQLite3 does not support Boolean types
-        all_movies_table = "CREATE TABLE IF NOT EXISTS all_movies(id TEXT PRIMARY KEY NOT NULL, " \
+        all_movies_table = "CREATE TABLE IF NOT EXISTS all_movies(id INTEGER PRIMARY KEY NOT NULL, " \
                            "file_name TEXT NOT NULL, path TEXT NOT NULL, extension TEXT, title TEXT NOT NULL, " \
                            "year TEXT, rating TEXT, subtitles TEXT NOT NULL, sub_language TEXT)"
-        selected_movies_table = "CREATE TABLE IF NOT EXISTS selected_movies(id TEXT PRIMARY KEY NOT NULL, " \
+        selected_movies_table = "CREATE TABLE IF NOT EXISTS selected_movies(id INTEGER PRIMARY KEY NOT NULL, " \
                                 "file_name TEXT, path TEXT, extension TEXT, title TEXT, " \
                                 "year TEXT, rating TEXT, subtitles TEXT, sub_language TEXT)"
         self.cursor.execute(all_movies_table)
