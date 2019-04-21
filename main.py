@@ -34,7 +34,7 @@ class MyApp(UIClass, QtBaseClass):
         self.interactor.check_if_entries_exist()
         self._populate_table()
 
-        self.subtitle_downloader = SubtitleDownloader(self.subtitle_preference, self.interactor)
+        self.subtitle_downloader = SubtitleDownloader(self.subtitle_preference, self.interactor, self.PromptLabel)
 
     def bind_browse_button(self):
         """
@@ -197,6 +197,9 @@ class MyApp(UIClass, QtBaseClass):
         except FileNotFoundError:
             winsound.MessageBeep()
             self.PromptLabel.setText("Oops! Unfortunately there was a problem!")
+        except json.JSONDecodeError:
+            winsound.MessageBeep()
+            self.PromptLabel.setText("There is a problem with the internet connection. Try again later.")
         else:
             self.PromptLabel.setText("Folder scanning complete! {} files already exist in the database"
                                      .format(duplicate_files))
@@ -216,6 +219,7 @@ class MyApp(UIClass, QtBaseClass):
         Deletes all the tables inside the database.
         """
         self.interactor.clear_db()
+        self.interactor.clear_db("sub_dl_links")
         self.ScannedItems.setRowCount(0)
         self.interactor.commit_and_renew_cursor()
         self.PromptLabel.setText("Database cleared!")
