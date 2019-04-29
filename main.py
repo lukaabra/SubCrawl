@@ -34,7 +34,8 @@ class MyApp(UIClass, QtBaseClass):
         self.interactor.check_if_entries_exist()
         self._populate_table()
 
-        self.subtitle_downloader = SubtitleDownloader(self.subtitle_preference, self.interactor, self.PromptLabel)
+        self.subtitle_downloader = SubtitleDownloader(self.subtitle_preference,
+                                                      self.interactor, self.PromptLabel, self.ProgressBar)
 
     def bind_browse_button(self):
         """
@@ -210,8 +211,8 @@ class MyApp(UIClass, QtBaseClass):
         self.ScanProgressBar.setValue(0)
 
     def on_click_download(self):
-        # TODO: Find out how to make the GUI still interactible while downloading and querying.
-        asyncio.run(self.subtitle_downloader.download_from_opensubtitles())
+        self.PromptLabel.setText("Commencing download ...")
+        self.subtitle_downloader.download_from_opensubtitles()
 
     @pyqtSlot()
     def on_click_clear_db(self):

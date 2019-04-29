@@ -1,9 +1,8 @@
 import json
 import gzip
+import shutil
 import os
-import asyncio
-import aiohttp
-import aiofiles
+import requests
 from xmlrpc.client import ServerProxy, ProtocolError, Fault, expat
 
 from db_interactor import _DBInteractor
@@ -40,10 +39,12 @@ class SubtitlePreference(object):
 
 class SubtitleDownloader(object):
 
-    def __init__(self, subtitle_preference: SubtitlePreference, interactor: _DBInteractor, prompt_label):
+    def __init__(self, subtitle_preference: SubtitlePreference, interactor: _DBInteractor, prompt_label, progress_bar):
         self.preference = subtitle_preference
         self.interactor = interactor
         self.prompt_label = prompt_label
+        self.progress_bar = progress_bar
+        self.downloaded_files = 0
 
         self.opensubs_token = None
         self.payload = dict()
@@ -57,6 +58,8 @@ class SubtitleDownloader(object):
 
         :param entry: (tuple) tuple consisting of fields of a record from the database
         :return payload: (dictionary) information crucial for subtitle downloading for that particular movie
+                movie_directory
+                entry_id
         """
         try:
             entry_id = entry[0]
@@ -72,7 +75,7 @@ class SubtitleDownloader(object):
                        "sublanguageid": self.preference.language_iso3}
         return payload, movie_directory
 
-    async def _perform_query(self, payload, proxy):
+    def _perform_query(self, payload, proxy):
         """
         Searches for the desired subtitles through the OpenSubtitles API and writes the download URL information
         to a table inside the database.
@@ -81,10 +84,7 @@ class SubtitleDownloader(object):
         :param proxy: ServerProxy.LogIn(username, password, language, useragent)
         """
         try:
-            # query_result = proxy.SearchSubtitles(self.opensubs_token, [payload], {"limit": 10})
-            query_coroutine = asyncio.coroutine(proxy.SearchSubtitles(self.opensubs_token, [payload], {"limit": 10}))
-            query_task = asyncio.create_task(query_coroutine)
-            query_result = await query_task
+            query_result = proxy.SearchSubtitles(self.opensubs_token, [payload], {"limit": 10})
         except Fault as e:
             raise "A fault has occurred:\n{}".format(e)
         except ProtocolError as e:
@@ -95,46 +95,42 @@ class SubtitleDownloader(object):
                 # Iterates through the results and breaks away when a satisfactory file has been found
                 for result in results:
                     subtitle_name, download_link = result["SubFileName"], result["SubDownloadLink"]
+                    movie_id = payload["imdbid"]
                     if subtitle_name.upper().endswith(self.sub_file_extensions):
-                        download_data = {"download link": download_link, "file name": subtitle_name}
-                        self.interactor.add_subtitle_to_db(download_data, self.preference.language_iso3)
-                        break
+                        download_data = {"imdbid": movie_id, "download link": download_link, "file name": subtitle_name}
+                        return download_data
             else:
                 print("Wrong status code: {}".format(query_result["status"]))
 
-    async def _download_and_save_file(self, movie_directory):
+    def _download_and_save_file(self, movie_directory, query_result):
         """
         Iterates through the download links gotten from OpenSubtitles and tries to download and save each file from
         each link asynchronously using aiohttp.
 
         :param movie_directory:
         """
-        for entry in self.interactor.retrieve("sub_dl_links"):
-            download_link, sub_name = entry["download link"], entry["file name"]
-            # Download .gz subtitle file
-            # https://stackoverflow.com/questions/35388332/how-to-download-images-with-aiohttp
-            async with aiohttp.ClientSession() as session:
-                async with session.get(download_link) as response:
-                    if response.status == 200:
-                        subtitle_path = movie_directory + "\\" + sub_name + ".gz"
-                        # Streaming the response content
-                        subtitle_file = await aiofiles.open(subtitle_path, mode="wb")
-                        while True:
-                            chunk = await response.content.read(10)
-                            if not chunk:
-                                break
-                            await subtitle_file.write(chunk)
-                        await subtitle_file.close()
-                    else:
-                        self.prompt_label.setText("There was a problem while trying to obtain the subtitle file.")
+        download_link, sub_name = query_result["download link"], query_result["file name"]
+        with requests.get(download_link) as response:
+            if response.status_code == requests.codes.ok:
+                subtitle_path = movie_directory + "\\" + sub_name + ".gz"
+                self.prompt_label.setText("Beginning download of {}. Please wait".format(sub_name))
+                # Stream the download 128 kb at a time and update the progress bar
+                with open(subtitle_path, "wb") as sub_file:
+                    for chunk in response.iter_content(chunk_size=128):
+                        self.update_progress(len(chunk), (self.progress_bar.setValue, len(response.content)))
+                        sub_file.write(chunk)
+                self.downloaded_files += 1
+                self.prompt_label.setText("Finished downloading {}".format(sub_name))
 
-        # Open and read the compressed file and write it outside
-        # with gzip.open(sub_name + ".gz", "rb") as f:
-        #     file_content = f.read()
-        # with open(sub_name, "wb") as sub_file:
-        #     sub_file.write(file_content)
+                # # Open and read the compressed file and write it outside
+                # with gzip.open(subtitle_path, 'rb') as f_in:
+                #     with open(subtitle_path, 'wb') as f_out:
+                #         shutil.copyfileobj(f_in, f_out)
 
-    async def download_from_opensubtitles(self):
+            elif response.raise_for_status() is not None:
+                self.prompt_label.setText("{} Error.".format(response.status_code))
+
+    def download_from_opensubtitles(self):
         """
         Logs the user into the OpenSubtitles API and performs the query of their servers. For each result of the query
         (for each selected movie) the program downloads the subtitle and saves it into the folder where the movie
@@ -144,33 +140,30 @@ class SubtitleDownloader(object):
         """
         with ServerProxy("https://api.opensubtitles.org/xml-rpc") as proxy:
             self.opensubs_token = self.log_in_opensubtitles(proxy)
-            # If there were not errors while logging in
+            # If there were no errors while logging in
             if self.opensubs_token != "error":
+                self.prompt_label.setText("Connected to OpenSubtitles database")
                 for payload, movie_directory in (self._create_payload(entry) for entry in
                                                  self.interactor.retrieve("selected_movies")):
-                    await self._perform_query(payload, proxy)
-                    if self.interactor.cursor.fetchone(self.interactor.retrieve("sub_dl_links")) is None:
-                        table_is_empty = True
-                    else:
-                        table_is_empty = False
-                    download_task = asyncio.create_task(self._download_and_save_file(movie_directory))
-                    if table_is_empty:
-                        await download_task
+                    query_result = self._perform_query(payload, proxy)
+                    self._download_and_save_file(movie_directory, query_result)
 
+                self.prompt_label.setText("Finishing up ...")
                 proxy.LogOut(self.opensubs_token)
+                self.prompt_label.setText("Download finished! Downloaded {} files".format(self.downloaded_files))
 
-    def update_progress(self, scanned_files: int, progress_tuple: tuple):
+    def update_progress(self, chunk_size: int, progress_tuple: tuple):
         """
         A number of scanned files is passed, and a function that will update the progress bar (GUI) with the scanned
         number of files compared to the total.
 
-        :param scanned_files: (integer) number of files scanned in the selected folder
+        :param chunk_size: (integer) number of files scanned in the selected folder
         :param progress_tuple: (tuple) -> (function, integer) tuple that contains a function to update a progress bar
                                 and the number of total files in the selected folder
         """
         update_fn = progress_tuple[0]
-        total_files = progress_tuple[1]
-        percent = round((scanned_files / total_files) * 100, 2)
+        file_size = progress_tuple[1]
+        percent = round((chunk_size / file_size) * 100, 2)
         update_fn(percent)
 
     def log_in_opensubtitles(self, proxy):
@@ -192,6 +185,7 @@ class SubtitleDownloader(object):
                 http://trac.opensubtitles.org/projects/opensubtitles/wiki/DevReadFirst
         """
         try:
+            self.prompt_label.setText("Logging in to OpenSubtitles, please wait ...")
             login = proxy.LogIn("", "", self.preference.language_iso3, "TemporaryUserAgent")
         except Fault:
             self.prompt_label.setText("There was a fault while logging in to OpenSubtitles. Please try again.")

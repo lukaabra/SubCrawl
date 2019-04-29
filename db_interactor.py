@@ -51,18 +51,6 @@ class _DBInteractor(object):
                                              media.title, media.year, media.imdb_rating,
                                              str(media.subtitles), " ".join(media.sub_language)))
 
-    def add_subtitle_to_db(self, url_data: dict, language):
-        """
-        Adds the subtitle information to a table.
-
-        :param url_data: (dictionary) contains the download link and the file name of the subtitle to download
-        :param language: (SubtitlePreference) selected subtitle language preference
-        """
-        download_link = url_data["download link"]
-        file_name = url_data["file name"]
-        update_sql = "INSERT INTO sub_dl_links(file_name, download_link, sub_language) VALUES(?, ?, ?)"
-        self.cursor.execute(update_sql, (file_name, download_link, language))
-
     def _check_duplicate(self, media: Media, table="all_movies") -> tuple or None:
         """
         Checks for any duplicates in the database by first checking the file path and then the IMDb movie ID.
@@ -121,18 +109,14 @@ class _DBInteractor(object):
         """
         Creates tables "all_movies" and "selected_movies" and "sub_dl_links" if they do not exist.
         """
-        # Subtitles is type INTEGER because SQLite3 does not support Boolean types
         all_movies_table = "CREATE TABLE IF NOT EXISTS all_movies(id INTEGER PRIMARY KEY NOT NULL, " \
                            "file_name TEXT NOT NULL, path TEXT NOT NULL, extension TEXT, title TEXT NOT NULL, " \
                            "year TEXT, rating TEXT, subtitles TEXT NOT NULL, sub_language TEXT)"
         selected_movies_table = "CREATE TABLE IF NOT EXISTS selected_movies(id INTEGER PRIMARY KEY NOT NULL, " \
                                 "file_name TEXT, path TEXT, extension TEXT, title TEXT, " \
                                 "year TEXT, rating TEXT, subtitles TEXT, sub_language TEXT)"
-        subtitle_download_links_table = "CREATE TABLE IF NOT EXISTS sub_dl_links(file_name TEXT NOT NULL, " \
-                                        "download_link TEXT NOT NULL, sub_language TEXT)"
         self.cursor.execute(all_movies_table)
         self.cursor.execute(selected_movies_table)
-        self.cursor.execute(subtitle_download_links_table)
 
     def commit_and_renew_cursor(self):
         """
