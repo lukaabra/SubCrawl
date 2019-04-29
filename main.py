@@ -34,8 +34,7 @@ class MyApp(UIClass, QtBaseClass):
         self.interactor.check_if_entries_exist()
         self._populate_table()
 
-        self.subtitle_downloader = SubtitleDownloader(self.subtitle_preference,
-                                                      self.interactor, self.PromptLabel, self.ProgressBar)
+        self.subtitle_downloader = SubtitleDownloader(self.subtitle_preference, self.PromptLabel, self.ProgressBar)
 
     def bind_browse_button(self):
         """
