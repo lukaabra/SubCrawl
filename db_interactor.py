@@ -44,14 +44,34 @@ class _DBInteractor(object):
         :param media: (Media) Media object of the file to add to the database or
         :param table: (string) table to which to add - "all_movies" or "selected_movies"
         """
-        if self._check_duplicate(media, table):
+        if self._check_duplicate_media(media, table):
             update_sql = "INSERT INTO {}(id, file_name, path, extension, title, year, rating, subtitles, sub_language)\
             VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)".format(table)
             self.cursor.execute(update_sql, (media.id, media.file_name, media.path, media.extension,
                                              media.title, media.year, media.imdb_rating,
                                              str(media.subtitles), " ".join(media.sub_language)))
 
-    def _check_duplicate(self, media: Media, table="all_movies") -> tuple or None:
+    def add_subtitle_search_data_to_db(self, subtitle_download_payload):
+        update_sql = "INSERT INTO search_subs(subs_id, movie_id, file_name, path) VALUES(?, ?, ?, ?)"
+        try:
+            self.cursor.execute(update_sql, (int(subtitle_download_payload["IDSubtitleFile"]),
+                                             subtitle_download_payload["imdbid"],
+                                             subtitle_download_payload["file name"],
+                                             subtitle_download_payload["movie directory"]))
+        except sqlite3.IntegrityError:
+            pass
+
+    def add_subtitle_download_data_to_db(self, download_data: tuple):
+        update_sql = "INSERT INTO download_subs(subs_id, bytecode) VALUES(?, ?)"
+        sub_id, byte_data = download_data
+        # byte_data is a regular string here!!
+        # The conversion to byte data happens at the moment it is being written to a file
+        try:
+            self.cursor.execute(update_sql, (int(sub_id), byte_data))
+        except sqlite3.IntegrityError:
+            pass
+
+    def _check_duplicate_media(self, media: Media, table="all_movies") -> tuple or None:
         """
         Checks for any duplicates in the database by first checking the file path and then the IMDb movie ID.
 
@@ -115,8 +135,14 @@ class _DBInteractor(object):
         selected_movies_table = "CREATE TABLE IF NOT EXISTS selected_movies(id INTEGER PRIMARY KEY NOT NULL, " \
                                 "file_name TEXT, path TEXT, extension TEXT, title TEXT, " \
                                 "year TEXT, rating TEXT, subtitles TEXT, sub_language TEXT)"
+        search_subs_table = "CREATE TABLE IF NOT EXISTS search_subs(subs_id INTEGER PRIMARY " \
+                            "KEY NOT NULL, movie_id INTEGER NOT NULL, file_name TEXT, path TEXT)"
+        download_subs_table = "CREATE TABLE IF NOT EXISTS download_subs(subs_id INTEGER PRIMARY KEY NOT NULL, " \
+                              "bytecode TEXT NOT NULL)"
         self.cursor.execute(all_movies_table)
         self.cursor.execute(selected_movies_table)
+        self.cursor.execute(search_subs_table)
+        self.cursor.execute(download_subs_table)
 
     def commit_and_renew_cursor(self):
         """
@@ -173,8 +199,8 @@ class _DBInteractor(object):
         if condition:
             if_statement = " WHERE {}=?".format(condition[0])
             result = self.cursor.execute("SELECT * FROM {}".format(table) + if_statement, (condition[1], ))
-            search_result = [entry for entry in result]
-            return tuple(search_result)
+            search_result = tuple(entry for entry in result)
+            return search_result
         else:
             self.cursor.execute("SELECT * FROM {}".format(table))
             return self.cursor.fetchall()

@@ -34,7 +34,8 @@ class MyApp(UIClass, QtBaseClass):
         self.interactor.check_if_entries_exist()
         self._populate_table()
 
-        self.subtitle_downloader = SubtitleDownloader(self.subtitle_preference, self.PromptLabel, self.ProgressBar)
+        self.subtitle_downloader = SubtitleDownloader(self.subtitle_preference, self.PromptLabel,
+                                                      self.ProgressBar, self.interactor)
 
     def bind_browse_button(self):
         """
@@ -219,7 +220,9 @@ class MyApp(UIClass, QtBaseClass):
         Deletes all the tables inside the database.
         """
         self.interactor.clear_db()
-        self.interactor.clear_db("sub_dl_links")
+        self.interactor.clear_db("selected_movies")
+        self.interactor.clear_db("search_subs")
+        self.interactor.clear_db("download_subs")
         self.ScannedItems.setRowCount(0)
         self.interactor.commit_and_renew_cursor()
         self.PromptLabel.setText("Database cleared!")
@@ -261,7 +264,7 @@ class MyApp(UIClass, QtBaseClass):
         selected_language = self.LanguageComboBox.currentText()
         self.LanguageLabel.setText("Language: {}".format(selected_language))
         self.subtitle_preference.add_language(selected_language)
-        self.PromptLabel.setText("Subtitle language changed")
+        self.PromptLabel.setText("Subtitle language changed to {}".format(selected_language))
 
     def on_click_remove_entry(self):
         """

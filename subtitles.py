@@ -3,9 +3,8 @@ import gzip
 import shutil
 import os
 import requests
+import base64
 from xmlrpc.client import ServerProxy, ProtocolError, Fault, expat
-
-from db_interactor import _DBInteractor
 
 
 class SubtitlePreference(object):
@@ -15,12 +14,20 @@ class SubtitlePreference(object):
     """
 
     def __init__(self):
+        """
+        Defaults the language to Albanian if the user does not select any language.
+        """
         self.language_name = "Albanian"
         self.language_iso2 = "sq"
         self.language_iso3 = "alb"
         self.sub_source_preference = ("OpenSubtitles", "SubDB")
 
-    def add_language(self, language_preference):
+    def add_language(self, language_preference: str):
+        """
+        Adds the selected language to the class from a file which contains the list of all ISO639 languages.
+
+        :param language_preference: (string) selected language from the combo box on the UI
+        """
         with open("resources/iso 639 2.json", "r") as languages_file:
             languages_json = json.load(languages_file)
             for language in languages_json:
@@ -30,6 +37,13 @@ class SubtitlePreference(object):
                     self.language_iso3 = language["Alpha3b_Code"]
 
     def change_sub_source(self, sub_source_list: list):
+        """
+        Changes the source of subtitle downloading depending on what the user ticked in the checkbox in the GUI. The
+        tuple will be either one element or two elements long.
+        TODO: Add to use
+
+        :param sub_source_list: (list) list containing sources
+        """
         self.sub_source_preference = tuple(sub_source_list)
 
     def __str__(self):
@@ -41,118 +55,167 @@ class SubtitleDownloader(object):
 
     """
     Class for downloading subtitles. It's data attributes contain various information necessary for clarity and
-    easy access. Data attributes are divided into 3 categories:
-        * GUI and user interaction (prompt label and progress bar)
-        * download variables (log in token, subtitle file extension list, etc.)
+    easy access.
+    The class is instantiated with the preferences needed to operate (language preference, download sources, prompt
+    to display information on and progress bar which to update). Then the downloading method is called which in turn
+    does all the heavy lifting.
     """
 
-    def __init__(self, subtitle_preference: SubtitlePreference, prompt_label, progress_bar):
+    def __init__(self, subtitle_preference: SubtitlePreference, prompt_label, progress_bar, interactor):
+        """
+        :param subtitle_preference: (SubtitlePreference) signals from which sources to download and in what language
+        :param prompt_label: (PromptLabel) label to which information during downloading will be displayed
+        :param progress_bar: (ProgressBar) progress bar which is updated with the progression of downloading
+        :param interactor: (_DB_Interactor) interacts with the database to retrieve information
+        """
         self.preference = subtitle_preference
         self.prompt_label = prompt_label
         self.progress_bar = progress_bar
+        self.interactor = interactor
         self.downloaded_files = 0
 
+        # Token to log in to OpenSubtitles
         self.opensubs_token = None
-        self.payload = dict()
         self.sub_file_extensions = (".RAR", ".ZIP", ".SRT")
 
-    def _create_payload(self, entry: tuple) -> tuple:
+    def _create_payload_for_subtitle_searching(self, entry: tuple) -> dict:
         """
         Creates a payload consisting of IMDbID, movie title and subtitle language data ready for downloading.
 
         :param entry: (tuple) tuple consisting of fields of a record from the database
         :return payload: (dictionary) information crucial for subtitle downloading for that particular movie
-                movie_directory: (str) absolute path of the movie for which the subs will be downloaded
         """
         try:
             entry_id = entry[0]
             entry_title = entry[4]
             movie_directory, _ = os.path.split(entry[2])
         except KeyError:
-            payload = dict()
-            movie_directory = ""
+            payload_for_sub_search = dict()
         else:
             # If "imdbid" is defined, "query" is ignored.
-            payload = {"imdbid": entry_id,
-                       "query": entry_title,
-                       "sublanguageid": self.preference.language_iso3}
-        return payload, movie_directory
+            payload_for_sub_search = {"imdbid": entry_id,
+                                      "query": entry_title,
+                                      "sublanguageid": self.preference.language_iso3,
+                                      "movie directory": movie_directory}
+        return payload_for_sub_search
 
-    def _perform_query(self, payload: dict, proxy: ServerProxy) -> dict:
+    def _perform_query_and_store(self, payload_for_sub_search: dict, proxy: ServerProxy):
         """
         Searches for the desired subtitles through the OpenSubtitles API and writes the download URL information
-        to a dictionary which is then returned
+        to a table ("search_subs").
 
-        :param payload: (dictionary) contains the information about the movie for which the subtitle will download
+        :param payload_for_sub_search: (dictionary) contains the information about the movie for which
+                                                    the subtitle will download
         :param proxy: ServerProxy.LogIn(username, password, language, useragent)
 
         :return download_data: (dictionary) contains crucial information for file downloading
         """
         try:
-            query_result = proxy.SearchSubtitles(self.opensubs_token, [payload], {"limit": 10})
-        except Fault as e:
-            raise "A fault has occurred:\n{}".format(e)
-        except ProtocolError as e:
-            raise "A ProtocolError has occurred:\n{}".format(e)
+            query_result = proxy.SearchSubtitles(self.opensubs_token, [payload_for_sub_search], {"limit": 10})
+        except Fault:
+            self.prompt_label.setText("A fault has occurred")
+        except ProtocolError:
+            self.prompt_label.setText("A ProtocolError has occurred.")
         else:
             if query_result["status"] == "200 OK":
-                results = query_result["data"]
-                # Iterates through the results and breaks away when a satisfactory file has been found
-                for result in results:
-                    subtitle_name, download_link = result["SubFileName"], result["SubDownloadLink"]
-                    movie_id = payload["imdbid"]
-                    if subtitle_name.upper().endswith(self.sub_file_extensions):
-                        download_data = {"imdbid": movie_id, "download link": download_link, "file name": subtitle_name}
-                        return download_data
+                payload_for_download = self._create_download_data(query_result["data"], payload_for_sub_search)
+                self.interactor.add_subtitle_search_data_to_db(payload_for_download)
             else:
-                print("Wrong status code: {}".format(query_result["status"]))
+                self.prompt_label.setText("Wrong status code: {}".format(query_result["status"]))
 
-    def _download_and_save_file(self, movie_directory: str, query_result: dict):
+    def _create_download_data(self, query_results: dict, payload_for_sub_search: dict):
         """
-        If the response of the request to the file URL is okay it is written to a file in a stream of 128 kb. Else
-        The error message is written on the prompt. During the streaming the progress bar is updated. Meanwhile the prompt
-        is constantly being updated with information.
+        Creates the subtitle download data from the results of the OpenSubtitles server query
 
-        :param movie_directory: (string) absolute path of the movie for which the subtitle file is being downloaded
-        :param query_result (dictionary) result of the OpenSubtitles API with information crucial for downloading
+        :param query_results: (list) list of dictionaries containing information regarding queried subtitles
+        :param payload_for_sub_search: (dict) payload created for the OpenSubtitles server query
         """
-        download_link, sub_name = query_result["download link"], query_result["file name"]
-        with requests.get(download_link) as response:
-            if response.status_code == requests.codes.ok:
-                subtitle_path = movie_directory + "\\" + sub_name + ".gz"
-                self.prompt_label.setText("Beginning download of {}. Please wait".format(sub_name))
-                # Stream the download 128 kb at a time and update the progress bar
-                with open(subtitle_path, "wb") as sub_file:
-                    for chunk in response.iter_content(chunk_size=128):
-                        self.update_progress(len(chunk), (self.progress_bar.setValue, len(response.content)))
-                        sub_file.write(chunk)
-                self.downloaded_files += 1
-                self.prompt_label.setText("Finished downloading {}".format(sub_name))
+        for result in query_results:
+            subtitle_name, download_link, sub_id = result["SubFileName"], result["SubDownloadLink"], result["IDSubtitleFile"]
+            movie_id = payload_for_sub_search["imdbid"]
+            movie_directory = payload_for_sub_search["movie directory"]
+            if subtitle_name.upper().endswith(self.sub_file_extensions):
+                payload_for_download = {"imdbid": movie_id,
+                                        "file name": subtitle_name,
+                                        "IDSubtitleFile": sub_id,
+                                        "movie directory": movie_directory}
+                return payload_for_download
 
-                # # Open and read the compressed file and write it outside
-                # with gzip.open(subtitle_path, 'rb') as f_in:
-                #     with open(subtitle_path, 'wb') as f_out:
-                #         shutil.copyfileobj(f_in, f_out)
+    def _download_file(self, proxy):
+        """
+        If the response of the request to the file URL is okay it is stored into the database. The information (sub_id)
+        from tables "download_subs" and "search_subs" is matched and movie_directory and sub_name are pulled from
+        "search_subs". Data is passed to a function that writes the byte data.
 
-            elif response.raise_for_status() is not None:
-                self.prompt_label.setText("{} Error while downloading {}".format(response.status_code, sub_name))
+        :param proxy: (ServerProxy)
+        """
+        # Get subtitle information to download
+        subtitle_ids = [sub_id for sub_id, _, __, ___ in self.interactor.retrieve("search_subs")]
+        # TODO: Add check for length of subtitle_ids (Should be < 20)
+        download_data = proxy.DownloadSubtitles(self.opensubs_token, subtitle_ids)
+        if download_data["status"] == "200 OK":
+            # Store byte data to database
+            for individual_download_dict in download_data["data"]:
+                self.interactor.add_subtitle_download_data_to_db(tuple(individual_download_dict.values()))
+            self.interactor.commit_and_renew_cursor()
+            # Get the previously stored data
+            for sub_id, byte_data in self.interactor.retrieve("download_subs"):
+                search_condition = ("subs_id", sub_id)
+                # Get subtitle file name and movie directory path from another table
+                for _, __, sub_name, movie_directory in self.interactor.retrieve("search_subs", search_condition):
+                    subtitle_path = movie_directory + "\\" + sub_name + ".gzip"
+                    self._write_file(byte_data, subtitle_path)
+                    break
+        else:
+            self.prompt_label.setText("There was an error while trying to download your file: {}"
+                                      .format(download_data["status"]))
+
+    def _write_file(self, byte_data: str, subtitle_path: str):
+        """
+        Encode the byte_data string to bytes (since it's not in byte format by default) and write it to a .gzip
+        file. Unzip the content of the .gzip file and write it outside (unzipped).
+
+        :param byte_data: (string) string containing bytecode information
+                                        ATTENTION: variable is not byte encoded, which is why it is done in this method
+        :param subtitle_path: (string) absolute path where to write the subtitle
+        """
+        with open(subtitle_path, "wb") as subtitle_file:
+            subtitle_file.write(base64.decodebytes(byte_data.encode()))
+
+        # Open and read the compressed file and write it outside
+        with gzip.open(subtitle_path, 'rb') as gzip_file:
+            content = gzip_file.read()
+            # Removes the ".gzip" extension
+            with open(subtitle_path[:-4], 'wb') as srt_file:
+                srt_file.write(content)
+        # Remove the .gzip file
+        os.remove(subtitle_path)
 
     def download_from_opensubtitles(self):
         """
-        Logs the user into the OpenSubtitles API. If the log in successful then payloads are created for querying
+        Logs the user into the OpenSubtitles API. If the log in is successful then payloads are created for querying
         the OpenSubtitles database. The query result is passed to the download function. Meanwhile the Prompt Label in
         the GUI is updated with information.
         After all the downloading and querying is finished, the user is logged out.
         """
         with ServerProxy("https://api.opensubtitles.org/xml-rpc") as proxy:
             self.opensubs_token = self.log_in_opensubtitles(proxy)
+
             # If there were no errors while logging in
             if self.opensubs_token != "error":
                 self.prompt_label.setText("Connected to OpenSubtitles database")
-                for payload, movie_directory in (self._create_payload(entry) for entry in
-                                                 self.interactor.retrieve("selected_movies")):
-                    query_result = self._perform_query(payload, proxy)
-                    self._download_and_save_file(movie_directory, query_result)
+
+                for payload_for_sub_search in (self._create_payload_for_subtitle_searching(entry)
+                                               for entry in self.interactor.retrieve("selected_movies")):
+                    # Removes the movie directory path from the payload which will be sent to OpenSubtitles
+                    self._perform_query_and_store(payload_for_sub_search, proxy)
+
+                self.interactor.commit_and_renew_cursor()
+
+                self._download_file(proxy)
+
+                self.interactor.clear_db("search_subs")
+                self.interactor.clear_db("download_subs")
 
                 self.prompt_label.setText("Finishing up ...")
                 proxy.LogOut(self.opensubs_token)
