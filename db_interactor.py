@@ -127,7 +127,7 @@ class _DBInteractor(object):
 
     def _create_tables(self):
         """
-        Creates tables "all_movies" and "selected_movies" and "sub_dl_links" if they do not exist.
+        Creates tables "all_movies", "selected_movies", "search_subs", and "download_subs" if they do not exist.
         """
         all_movies_table = "CREATE TABLE IF NOT EXISTS all_movies(id INTEGER PRIMARY KEY NOT NULL, " \
                            "file_name TEXT NOT NULL, path TEXT NOT NULL, extension TEXT, title TEXT NOT NULL, " \

@@ -1,9 +1,9 @@
 import json
 import gzip
-import shutil
 import os
-import requests
 import base64
+from socket import gaierror
+
 from xmlrpc.client import ServerProxy, ProtocolError, Fault, expat
 
 
@@ -118,8 +118,13 @@ class SubtitleDownloader(object):
             self.prompt_label.setText("A ProtocolError has occurred.")
         else:
             if query_result["status"] == "200 OK":
-                payload_for_download = self._create_download_data(query_result["data"], payload_for_sub_search)
-                self.interactor.add_subtitle_search_data_to_db(payload_for_download)
+                # TODO: Add better handling of non existing subtitles
+                if query_result["data"] is not None:
+                    payload_for_download = self._create_download_data(query_result["data"], payload_for_sub_search)
+                    self.interactor.add_subtitle_search_data_to_db(payload_for_download)
+                else:
+                    self.prompt_label.setText("There is no subtitles in this language for {}".
+                                              format(payload_for_sub_search["query"]))
             else:
                 self.prompt_label.setText("Wrong status code: {}".format(query_result["status"]))
 
@@ -188,6 +193,8 @@ class SubtitleDownloader(object):
             # Removes the ".gzip" extension
             with open(subtitle_path[:-4], 'wb') as srt_file:
                 srt_file.write(content)
+
+        self.downloaded_files += 1
         # Remove the .gzip file
         os.remove(subtitle_path)
 
@@ -269,9 +276,10 @@ class SubtitleDownloader(object):
             # https://stackoverflow.com/questions/3664084/xml-parser-syntax-error
             self.prompt_label.setText("The received payload is probably incorrect")
             return "error"
+        except gaierror:
+            self.prompt_label.setText("Please check your internet connection and try again")
         except Exception as e:
-            raise e
-            self.prompt_label.setText(str(e))
+            self.prompt_label.setText("Be sure to send us this error: {}".format(str(e)))
             return "error"
         else:
             if login["status"] == "200 OK":
