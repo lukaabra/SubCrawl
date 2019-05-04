@@ -14,7 +14,7 @@ There is also an option to select from which source to download the subtitles if
 
 This is a project I started as a way to learn Python 3 and to get familiar with the process of creating an application. I chose this theme because I could find use out of it (everyone needs subtitles from time to time). I know this type of application probably already exists and that is why I stated already that the primary reason for making this is to learn and grow as a developer. :mortar_board:
 
-![GUI example] (ui_example.png "GUI example")
+![GUI example](ui_example.png "GUI example")
 
 ### How?
 
