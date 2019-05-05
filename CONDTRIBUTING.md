@@ -6,7 +6,7 @@ These guidelines are important as to develop this project in an organized fashio
 
 # SETTING UP
 
-Currently you can set up SubCrawl to run by cloning the repository to your designated folder and running `main.py`. Since this project is currently in it's beginning this is not how it is imagined it would run. You can view the vision and plan for the project on the [Wiki](https://github.com/lukaabra/SubCrawl/wiki). :telescope:
+Currently you can set up SubCrawl to run by cloning the repository to your designated folder and running `main.py`. Since this project is currently in it's beginning this is not how it is imagined it would run. You can view the vision and plan for the project on the [Wiki](https://github.com/lukaabra/SubCrawl/wiki/Vision). :telescope:
 
 ### Requirements:
 
@@ -106,7 +106,7 @@ Also, be sure to indicate all the parameters and return values of each method, t
 
 ### Repository
 
-Create a pull request and describe what have you changed in the documentation. Please be sure to check out our [Wiki](https://github.com/lukaabra/SubCrawl/wiki) (which is in progress) about the vision and roadmap of the project, as to avoid conflicts in information between documentation files.
+Create a pull request and describe what have you changed in the documentation. Please be sure to check out our [Wiki](https://github.com/lukaabra/SubCrawl/wiki/Vision) (which is in progress) about the vision of the project, as to avoid conflicts in information between documentation files.
 Any changes to the Roadmap of the project should first be opened in an issue and discussed between the community. If the support is great enough, the changes will be approved.
 
 ## CONTACT
