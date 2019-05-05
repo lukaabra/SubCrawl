@@ -19,9 +19,7 @@ This is a project I started as a way to learn Python 3 and to get familiar with 
 ### How?
 
 The whole application is built in Python 3. The GUI is built with PyQt5 and is designed in QtDesigner.
-File names are parsed using a package called PTN (parse torrent name).
-
-:mega: https://github.com/divijbindlish/parse-torrent-name
+File names are parsed using a package called [PTN (parse torrent name)](https://github.com/divijbindlish/parse-torrent-name) :mega:.
 
 Currently, the prime source of downloading subtitle data is OpenSubtitles. 
 
