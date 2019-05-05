@@ -2,6 +2,8 @@
 
 ##### Application for easy scanning of directories for movie files and subtitle downloading.
 
+[Issues badge](https://img.shields.io/github/issues-raw/lukaabra/SubCrawl.svg)
+
 ### What?
 
 The application enables the user to scan a designated directory for movies. :tv:
