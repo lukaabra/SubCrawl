@@ -2,7 +2,7 @@
 
 ##### Application for easy scanning of directories for movie files and subtitle downloading.
 
-https://img.shields.io/github/issues-raw/lukaabra/SubCrawl.svg
+![Issues open](https://img.shields.io/github/issues-raw/lukaabra/SubCrawl.svg)
 
 ### What?
 
