@@ -2,7 +2,7 @@
 
 Thank you for checking out the project and deciding that it would be a good idea to contribute and fix it up. Because let's be honest, the project is a fixxer-upper if there's ever been one. We appreciate the time you have set apart in learning more about SubCrawl. For further information check out our Wiki. Let's get down to business!
 
-These guidelines are important as to develop this project in an organized fashion and help guide newcomers on the right path. If you have any questions or doubts, feel free to contact me (info under **CONTACTS**).
+These guidelines are important as to develop this project in an organized fashion and help guide newcomers on the right path.
 
 ## SETTING UP
 
