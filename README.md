@@ -48,7 +48,8 @@ Each Python file holds classes which are grouped together thematically:
 
 If you are willing to get your hands dirty and learn as you work, do not hesitate. Contribute with anything you think will improve the application. Beginners and masters of the craft are welcomed to join! :muscle:
 
-Check the open issues and start there. If you can't find anything of interest, let me know and we will find something! :question:
+Check the open issues and start there. If you can't find anything of interest, let us know and we will find something! :question:
+We recommend checking out our [contributing guidelines](https://github.com/lukaabra/SubCrawl/blob/master/CONDTRIBUTING.md) first before starting.
 
 ### Note
 
