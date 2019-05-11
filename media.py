@@ -10,7 +10,7 @@ class Media(object):
 
     def __init__(self, file_path: str):
         """
-        An object which represents some for of media file. Most of the data attributes are pretty self-
+        An object which represents some form of media file. Most of the data attributes are pretty self-
         explanatory.
 
         :param file_path: (string) an absolute path of the media file
@@ -43,7 +43,6 @@ class Media(object):
         TODO: Make the requests an asynchronous operation.
         """
         media_type = "movie"
-        # Key found on email
         url = "http://www.omdbapi.com/?apikey=678bc96c&t={0.title}&y={0.year}&type={1}".format(self, media_type)
         # Checks for internet connection
         response = requests.get(url)
@@ -101,8 +100,6 @@ class Movie(Media):
             "The Killing of a Sacred Deer.2017.1080p.WEB-DL.H264.AC3-EVO[EtHD]"
             "12 Angry Men 1957 1080p BluRay x264 AAC - Ozlem"
             "Life.Is.Beautiful.1997.1080p.BluRay.x264.anoXmous"
-
-        TODO: Full proof regexes and write more of them.
         """
         movie_regex = re.compile(r"(.*?[.| ])(\(\d{4}\)|\d{4}|\[\d{4}\])?([.| ].*)")
         if movie_regex.search(self.title) is not None:

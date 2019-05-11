@@ -6,8 +6,6 @@ class Folder(object):
     Object which represents a folder in a PC. It has parents which should also be of type Folder and children which
     are of type File and stored in a list. When the children are locked, they are converted to a tuple and prevented
     from further changes.
-
-    TODO: Remove unnecessary features of Folder and File class
     """
 
     def __init__(self, path: str):
@@ -20,7 +18,6 @@ class Folder(object):
         _, self.folder_name = os.path.split(path)
         self.parent = None
         self.children = []
-        self.files = None
 
     def add_parent(self, parent):
         """
@@ -78,7 +75,7 @@ class File(object):
         """
         self.parent = parent
 
-    def detect_type(self, movie_extensions):
+    def detect_media_or_sub(self, movie_extensions):
         """
         Detects if the file is a media type file or a subtitle file.
 
