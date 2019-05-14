@@ -2,6 +2,8 @@
 
 ##### Application for easy scanning of directories for movie files and subtitle downloading.
 
+![Issues open](https://img.shields.io/github/issues-raw/lukaabra/SubCrawl.svg)
+
 ### What?
 
 The application enables the user to scan a designated directory for movies. :tv:
@@ -19,9 +21,7 @@ This is a project I started as a way to learn Python 3 and to get familiar with 
 ### How?
 
 The whole application is built in Python 3. The GUI is built with PyQt5 and is designed in QtDesigner.
-File names are parsed using a package called PTN (parse torrent name).
-
-:mega: https://github.com/divijbindlish/parse-torrent-name
+File names are parsed using a package called [PTN (parse torrent name)](https://github.com/divijbindlish/parse-torrent-name) :mega:.
 
 Currently, the prime source of downloading subtitle data is OpenSubtitles. 
 
@@ -48,7 +48,8 @@ Each Python file holds classes which are grouped together thematically:
 
 If you are willing to get your hands dirty and learn as you work, do not hesitate. Contribute with anything you think will improve the application. Beginners and masters of the craft are welcomed to join! :muscle:
 
-Check the open issues and start there. If you can't find anything of interest, let me know and we will find something! :question:
+Check the open issues and start there. If you can't find anything of interest, let us know and we will find something! :question:
+We recommend checking out our [contributing guidelines](https://github.com/lukaabra/SubCrawl/blob/master/CONDTRIBUTING.md) first before starting.
 
 ### Note
 
