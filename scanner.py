@@ -121,8 +121,8 @@ class Scanner(object):
         """
         media = Movie(file_path)
         media.extract_movie_info()
-        movie_found = True  # No internet connection
-        # movie_found = media.search_imdb_id()
+        # movie_found = True  # No internet connection
+        movie_found = media.search_imdb_id()
         if movie_found:
             if media_contains_subs:
                 media.add_subs(media_contains_subs)

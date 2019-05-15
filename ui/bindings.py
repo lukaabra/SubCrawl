@@ -56,8 +56,8 @@ class SubCrawl(Ui_SubCrawl, QtWidgets.QMainWindow):
         table_row = self.ScannedItems.rowCount()
 
         for entry in self.interactor.retrieve(db_table, condition):
-            self._set_items_in_table(table_row, entry)
             self.ScannedItems.insertRow(table_row)
+            self._set_items_in_table(table_row, entry)
             table_row = self.ScannedItems.rowCount()
 
         # If the "Select All" radio button was checked before the table was populated (table was empty), call the
