@@ -165,24 +165,6 @@ class SubCrawl(Ui_SubCrawl, QtWidgets.QMainWindow):
         self.interactor.clear_db("selected_movies")
         self.PromptLabel.setText("Canceled selection")
 
-    def bind_checkbox(self):
-        self.OpenSubtitlesCheck.toggled.connect(self.checkbox_handler)
-        self.SubsDbCheck.toggled.connect(self.checkbox_handler)
-
-    def checkbox_handler(self):
-        """
-        Checks the state of each checkbox and accordingly changes the SubtitlePreference class instance.
-        """
-        if self.OpenSubtitlesCheck.isChecked():
-            if self.SubsDbCheck.isChecked():
-                self.subtitle_preference.sub_source_preference = ("OpenSubtitles", "SubsDB")
-            else:
-                self.subtitle_preference.sub_source_preference = ("OpenSubtitles",)
-        elif self.SubsDbCheck.isChecked():
-            self.subtitle_preference.sub_source_preference = ("SubsDB", )
-        else:
-            self.subtitle_preference.sub_source_preference = ()
-
     def bind_combo_box(self):
         """
         Connects the combo box to the function which changes the text on the label showing the language.

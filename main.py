@@ -32,7 +32,6 @@ def bind_all_buttons(application):
     application.bind_confirm_selection()
     application.bind_cancel_selection()
     application.bind_table_selection_changed()
-    application.bind_checkbox()
     application.bind_remove_entry()
     application.populate_language_combo_box()
 
