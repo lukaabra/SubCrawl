@@ -3,7 +3,7 @@ import gzip
 import os
 import base64
 from socket import gaierror
-
+from http.client import ResponseNotReady
 from xmlrpc.client import ServerProxy, ProtocolError, Fault, expat
 
 
@@ -118,8 +118,7 @@ class SubtitleDownloader(object):
             self.prompt_label.setText("A ProtocolError has occurred.")
         else:
             if query_result["status"] == "200 OK":
-                # TODO: Add better handling of non existing subtitles
-                if query_result["data"] is not None:
+                if query_result["data"]:
                     payload_for_download = self._create_download_data(query_result["data"], payload_for_sub_search)
                     self.interactor.add_subtitle_search_data_to_db(payload_for_download)
                 else:
@@ -146,34 +145,58 @@ class SubtitleDownloader(object):
                                         "movie directory": movie_directory}
                 return payload_for_download
 
-    def _download_file(self, proxy):
+    def _perform_file_download(self, proxy):
         """
-        If the response of the request to the file URL is okay it is stored into the database. The information (sub_id)
-        from tables "download_subs" and "search_subs" is matched and movie_directory and sub_name are pulled from
-        "search_subs". Data is passed to a function that writes the byte data.
+        Creates a list of subtitle file ID's that the user has selected to download. Those ID's are passed to a function
+        which will download the subtitle file byte code data and save to a file in the movie directory in chunks of
+        20 files at a time (OpenSubtitle API restriction).
 
         :param proxy: (ServerProxy)
         """
         # Get subtitle information to download
         subtitle_ids = [sub_id for sub_id, _, __, ___ in self.interactor.retrieve("search_subs")]
-        # TODO: Add check for length of subtitle_ids (Should be < 20)
-        download_data = proxy.DownloadSubtitles(self.opensubs_token, subtitle_ids)
+        while len(subtitle_ids) >= 19:
+            self._download_file(proxy, subtitle_ids[:19])
+            subtitle_ids = subtitle_ids[19:]
+            print(len(subtitle_ids))
+        if subtitle_ids:
+            self._download_file(proxy, subtitle_ids)
+
+    def _download_file(self, proxy, subtitle_ids):
+        """
+        Tries to download byte data. If successful the data will be stored to a table in the database. Afterwards, that
+        same data will be taken from that table and another table and written to a file.
+        """
+        download_data = dict()
+        try:
+            download_data = proxy.DownloadSubtitles(self.opensubs_token, subtitle_ids)
+        except ProtocolError as e:
+            download_data["status"] = e
+            self.prompt_label.setText("There has been a ProtocolError during downloading")
+        except ResponseNotReady as e:
+            download_data["status"] = e
+            self.prompt_label.setText("There has been a ResponseNotReady Error during downloading")
+
         if download_data["status"] == "200 OK":
-            # Store byte data to database
-            for individual_download_dict in download_data["data"]:
-                self.interactor.add_subtitle_download_data_to_db(tuple(individual_download_dict.values()))
-            self.interactor.commit_and_renew_cursor()
-            # Get the previously stored data
-            for sub_id, byte_data in self.interactor.retrieve("download_subs"):
-                search_condition = ("subs_id", sub_id)
-                # Get subtitle file name and movie directory path from another table
-                for _, __, sub_name, movie_directory in self.interactor.retrieve("search_subs", search_condition):
-                    subtitle_path = movie_directory + "\\" + sub_name + ".gzip"
-                    self._write_file(byte_data, subtitle_path)
-                    break
+            self._store_byte_data_to_db(download_data)
+            self._get_stored_byte_data()
         else:
             self.prompt_label.setText("There was an error while trying to download your file: {}"
                                       .format(download_data["status"]))
+
+    def _store_byte_data_to_db(self, download_data):
+        for individual_download_dict in download_data["data"]:
+            self.interactor.add_subtitle_download_data_to_db(tuple(individual_download_dict.values()))
+        self.interactor.commit_and_renew_cursor()
+
+    def _get_stored_byte_data(self):
+        for sub_id, byte_data in self.interactor.retrieve("download_subs"):
+            search_condition = ("subs_id", sub_id)
+            # Get subtitle file name and movie directory path from another table
+            for _, __, sub_name, movie_directory in self.interactor.retrieve("search_subs", search_condition):
+                subtitle_path = movie_directory + "\\" + sub_name + ".gzip"
+                self._write_file(byte_data, subtitle_path)
+                break
 
     def _write_file(self, byte_data: str, subtitle_path: str):
         """
@@ -208,7 +231,6 @@ class SubtitleDownloader(object):
         with ServerProxy("https://api.opensubtitles.org/xml-rpc") as proxy:
             self.opensubs_token = self.log_in_opensubtitles(proxy)
 
-            # If there were no errors while logging in
             if self.opensubs_token != "error":
                 self.prompt_label.setText("Connected to OpenSubtitles database")
 
@@ -219,7 +241,7 @@ class SubtitleDownloader(object):
 
                 self.interactor.commit_and_renew_cursor()
 
-                self._download_file(proxy)
+                self._perform_file_download(proxy)
 
                 self.interactor.clear_db("search_subs")
                 self.interactor.clear_db("download_subs")
@@ -227,6 +249,8 @@ class SubtitleDownloader(object):
                 self.prompt_label.setText("Finishing up ...")
                 proxy.LogOut(self.opensubs_token)
                 self.prompt_label.setText("Download finished! Downloaded {} files".format(self.downloaded_files))
+
+        self.downloaded_files = 0
 
     def update_progress(self, chunk_size: int, progress_tuple: tuple):
         """

@@ -2,7 +2,6 @@ import re
 import requests
 import json
 import os
-import random
 import PTN      # "parse_torrent_name" package
 
 
@@ -21,7 +20,7 @@ class Media(object):
         self.subtitles = False
         self.sub_path = ()
         self.sub_language = []
-        self.id = random.randint(1, 10000)
+        self.id = None
         self.imdb_rating = 0
         self.year = ""
 
@@ -56,7 +55,7 @@ class Media(object):
                                 "Internet Movie Database"][0]
         except KeyError:
             # TODO: Consider adding a log of movies that were not found
-            self.id = ""
+            self.id = None
         finally:
             return media_info["Response"]
 

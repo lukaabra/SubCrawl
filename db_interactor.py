@@ -44,7 +44,7 @@ class _DBInteractor(object):
         :param media: (Media) Media object of the file to add to the database or
         :param table: (string) table to which to add - "all_movies" or "selected_movies"
         """
-        if self._check_duplicate_media(media, table):
+        if self._check_duplicate_media(media, table) and media.id:
             update_sql = "INSERT INTO {}(id, file_name, path, extension, title, year, rating, subtitles, sub_language)\
             VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)".format(table)
             self.cursor.execute(update_sql, (media.id, media.file_name, media.path, media.extension,

@@ -23,7 +23,6 @@ class SubCrawl(Ui_SubCrawl, QtWidgets.QMainWindow):
         Ui_SubCrawl.__init__(self)
         QtWidgets.QMainWindow.__init__(self)
         self.setupUi(self)
-        self.showMaximized()
 
         # TODO: Implement enabling and disabling of buttons depending on the confirmation of selection
         self.selection_confirmed = False
@@ -186,6 +185,10 @@ class SubCrawl(Ui_SubCrawl, QtWidgets.QMainWindow):
     def on_click_download(self):
         self.PromptLabel.setText("Commencing download ...")
         self.subtitle_downloader.download_from_opensubtitles()
+        self.on_click_scan()
+
+        if self.SelectAllRadio.isChecked():
+            self.SelectAllRadio.setChecked(False)
 
     def bind_radio_buttons(self):
         """
@@ -268,6 +271,8 @@ class SubCrawl(Ui_SubCrawl, QtWidgets.QMainWindow):
         files, as well as the progress bar animation. The scanning function "perform_scan" is called from
         "scanner.py" in which the function for updating the progress bar is located.
         """
+        # Clear the database and the table in the GUI
+        self.on_click_clear_db()
         # Resets the total amount of files scanned before each scan
         self.total_files = 0
         self._calculate_total_number_of_files()
@@ -297,7 +302,7 @@ class SubCrawl(Ui_SubCrawl, QtWidgets.QMainWindow):
         else:
             self.PromptLabel.setText("Folder scanning complete! {} files already exist in the database"
                                      .format(duplicate_files))
-            self._populate_table("all_movies")
+            self.view_radio_buttons()
 
         finally:
             self._enable_buttons()
@@ -367,7 +372,7 @@ class SubCrawl(Ui_SubCrawl, QtWidgets.QMainWindow):
         CancelButton
         """
         self.ClearDBButton.setEnabled(True)
-        self.DownloadButton.setEnabled(True)
+        self.DownloadButton.setEnabled(False)
         self.StartScanButton.setEnabled(True)
         self.BrowseButton.setEnabled(True)
         self.CancelButton.setEnabled(False)
