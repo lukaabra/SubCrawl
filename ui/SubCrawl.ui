@@ -35,7 +35,7 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>SubCrawl</string>
+   <string>SubCrawl v0.9</string>
   </property>
   <property name="layoutDirection">
    <enum>Qt::LeftToRight</enum>
@@ -65,13 +65,13 @@
      <height>800</height>
     </size>
    </property>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>0</x>
       <y>0</y>
       <width>1271</width>
-      <height>801</height>
+      <height>811</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout_7" rowstretch="0,0,0,0" columnstretch="0,0,0,0">
@@ -185,7 +185,7 @@
           <number>1</number>
          </property>
          <property name="horizontalScrollBarPolicy">
-          <enum>Qt::ScrollBarAlwaysOff</enum>
+          <enum>Qt::ScrollBarAsNeeded</enum>
          </property>
          <property name="editTriggers">
           <set>QAbstractItemView::NoEditTriggers</set>
@@ -224,7 +224,7 @@
           <bool>true</bool>
          </attribute>
          <attribute name="horizontalHeaderDefaultSectionSize">
-          <number>208</number>
+          <number>55</number>
          </attribute>
          <attribute name="horizontalHeaderMinimumSectionSize">
           <number>208</number>
@@ -233,7 +233,7 @@
           <bool>true</bool>
          </attribute>
          <attribute name="horizontalHeaderStretchLastSection">
-          <bool>true</bool>
+          <bool>false</bool>
          </attribute>
          <attribute name="verticalHeaderVisible">
           <bool>false</bool>
@@ -2055,13 +2055,6 @@ for movies</string>
      <height>26</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuPreferences">
-    <property name="title">
-     <string>Preferences</string>
-    </property>
-    <addaction name="actionScanning"/>
-    <addaction name="actionSubtitles"/>
-   </widget>
    <widget class="QMenu" name="menuAbout">
     <property name="title">
      <string>About</string>
@@ -2069,7 +2062,6 @@ for movies</string>
     <addaction name="actionAbout"/>
     <addaction name="actionContribute"/>
    </widget>
-   <addaction name="menuPreferences"/>
    <addaction name="menuAbout"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>

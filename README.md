@@ -1,6 +1,6 @@
 # **SubCrawl**
 
-##### Application for easy scanning of directories for movie files and subtitle downloading.
+##### Scan for movies without subtitles and download them!
 
 ![Issues open](https://img.shields.io/github/issues-raw/lukaabra/SubCrawl.svg)
 
@@ -8,9 +8,9 @@
 
 The application enables the user to scan a designated directory for movies. :tv:
 The application can recognize what file is a movie and can recognize which movie has subtitles. :movie_camera:
-After the scanning part is completed, the user can choose which individual movies for which to download the 
+After the scanning part is completed, the user can choose individual movies for which to download the 
 subtitles in the selected language, or can simply select all the movies. :japan:
-There is also an option to select from which source to download the subtitles if they are available.
+
 
 ### Why?
 
@@ -23,9 +23,9 @@ This is a project I started as a way to learn Python 3 and to get familiar with 
 The whole application is built in Python 3. The GUI is built with PyQt5 and is designed in QtDesigner.
 File names are parsed using a package called [PTN (parse torrent name)](https://github.com/divijbindlish/parse-torrent-name) :mega:.
 
-Currently, the prime source of downloading subtitle data is OpenSubtitles. 
+Currently, the source of downloading subtitle data is OpenSubtitles. 
 
-During the scanning of a selected directory, each recognized media file is compared with the OMDb database to figure out if the file is a movie. After all the movies have been recognized the user can select which ones they want to download subtitles for. When the downloading is initiated the screen is freezed (see issues) and the program logs into their database. After the successful log in it pulls data about the subtitle files and writes those files in their respective movie directories.
+During the scanning of a selected directory, each recognized media file is compared with the OMDb database to figure out if the file is a movie. Afterwards, if all the movies have been recognized, the user can select which ones they want to download subtitles for. When the downloading is initiated the screen is freezed (see issues) and the program logs into the OpenSubtitles database. After the successful log in, the program pulls data about the subtitle files and writes those files in their respective movie directories.
 
 Each Python file holds classes which are grouped together thematically:
 
@@ -43,6 +43,8 @@ Each Python file holds classes which are grouped together thematically:
 :page_facing_up: **subtitles.py** class SubtitlePreference which saves the language and source preference that the user chooses and SubtitleDownloader which does the heavy lifting :muscle:
 
 :floppy_disk: **db_interactor.py** class _DBInteractor which is in charge of database interaction, be it storing or retrieving entries
+
+:minidisc: **bindings.py** binds all the buttons in the gui.py with its logic
 
 ### Want to help?
 
