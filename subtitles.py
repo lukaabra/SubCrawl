@@ -302,6 +302,7 @@ class SubtitleDownloader(object):
             return "error"
         except gaierror:
             self.prompt_label.setText("Please check your internet connection and try again")
+            return "error"
         except Exception as e:
             self.prompt_label.setText("Be sure to send us this error: {}".format(str(e)))
             return "error"
