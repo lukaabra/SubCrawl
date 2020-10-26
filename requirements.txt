@@ -1,4 +1,4 @@
-parse-torrent-name==1.1.1
-PyQt5==5.11.3
-PyQt5-sip==4.19.13
+git+git://github.com/divijbindlish/parse-torrent-name.git#egg=parse-torrent-name
+PyQt5==5.15.1
+PyQt5-sip==12.8.1
 requests==2.21.0

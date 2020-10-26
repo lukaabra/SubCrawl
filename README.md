@@ -18,7 +18,15 @@ This is a project I started as a way to learn Python 3 and to get familiar with 
 
 ### Usage
 
-Simply download the repository and run `main.py`. The GUI (example below) will be opened and you can start using the app!
+Clone the repository and install all of the dependencies using: 
+
+`python3 -m pip install -r requirements.txt` 
+
+Then run `main.py`:
+
+`python3 main.py`
+
+The interface (example below) will be opened and you can start using the app!
 
 ![GUI example](ui_example.png "GUI example")
 
