@@ -286,7 +286,10 @@ class SubtitleDownloader(object):
         """
         try:
             self.prompt_label.setText("Logging in to OpenSubtitles, please wait ...")
-            login = proxy.LogIn("", "", self.preference.language_iso3, "TemporaryUserAgent")
+            username = "subcrawlproject"
+            password = "subtitledownloader456"
+            user_agent = "SubcrawlProjectUserAgent"
+            login = proxy.LogIn(username, password, self.preference.language_iso3, user_agent)
         except Fault:
             self.prompt_label.setText("There was a fault while logging in to OpenSubtitles. Please try again.")
             return "error"

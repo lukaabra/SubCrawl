@@ -69,6 +69,7 @@ class _DBInteractor(object):
         try:
             self.cursor.execute(update_sql, (int(sub_id), byte_data))
         except sqlite3.IntegrityError:
+            print("Integrity error")
             pass
 
     def _check_duplicate_media(self, media: Media, table="all_movies") -> tuple or None:
