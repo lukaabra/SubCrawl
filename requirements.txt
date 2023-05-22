@@ -1,4 +1,4 @@
 git+git://github.com/divijbindlish/parse-torrent-name.git#egg=parse-torrent-name
 PyQt5==5.15.1
 PyQt5-sip==12.8.1
-requests==2.21.0
+requests==2.31.0
